@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import "./App.css";
 import { readText } from "@tauri-apps/api/clipboard";
 import placeholder_img from "./assets/placeholder.svg";
@@ -16,8 +16,8 @@ const BasicButton = ({ text, onClick }: { text: string; onClick: () => void }) =
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}>
-        {text}
-      </motion.button>
+      {text}
+    </motion.button>
   )
 }
 
@@ -39,17 +39,26 @@ const DownloadItems = ({ url, removeDownloadItem }: { url: string, removeDownloa
   const video_id = url.split("watch?v=")[1];
   const image_url = video_id ? `https://img.youtube.com/vi/${video_id}/maxresdefault.jpg` : placeholder_img;
   const [title, setTitle] = useState<string>("タイトルを取得中");
+  const title_cache = useRef<string>("");
 
   useEffect(() => {
     const getVideoInfo = async () => {
-      const video_title:string = await invoke("get_video_title", { url });
+      if (title_cache.current) return;
+      const video_title: string = await invoke("get_video_title", { url });
       setTitle(video_title);
+      title_cache.current = video_title;
     }
     getVideoInfo();
   }, [url]);
 
   return (
-    <motion.div className="download_item" variants={download_item_variants} initial="hidden" animate="visible">
+    <motion.div
+      className="download_item"
+      variants={download_item_variants}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+    >
       <div className="image_wrapper">
         <img src={image_url} />
       </div>
@@ -78,7 +87,7 @@ const Preview = ({ url }: { url: string }) => {
   const image_url = video_id ? `https://img.youtube.com/vi/${video_id}/maxresdefault.jpg` : placeholder_img;
   return (
     <div className="wrapper">
-      <img src={image_url} style={{ minWidth: "290px", outline: "1px solid rgba(0, 0, 0, 0.5)" }} />
+      <img src={image_url} style={{ width: "330px", height: "180px", outline: "1px solid rgba(0, 0, 0, 0.5)" }} />
     </div>
   );
 };
@@ -92,7 +101,7 @@ function App() {
   const [persent, setPercent] = useState<number>(0);
   const [outputPath, setOutputPath] = useState<string>("./outputs");
   const [inputedURL, setInputedURL] = useState<string>("");
-  const [urls, setUrls] = useState<string[]>([]);
+  const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=pwrjcAutgwE", "https://www.youtube.com/watch?v=6AK04Eg7ai0", "https://www.youtube.com/watch?v=9ILjzBg55WA"]);
 
   const addDownloadItem = (url: string) => {
     if (url) {
@@ -105,9 +114,7 @@ function App() {
     const del_index = () => {
       let i = 0;
       for (const item of urls) {
-        if (item === url) {
-          return i;
-        }
+        if (item === url) return i
         i++;
       }
     }
@@ -128,18 +135,29 @@ function App() {
     }
   };
 
+  const startDownload = async ({ urls, outputPath }: { urls: string[], outputPath: string }) => {
+    setStatus("実行中...");
+    await invoke("start_download", { urls, outputPath });
+    setStatus("完了");
+  };
+
   return (
     <div className="App">
       <div className="container" style={{ flex: 2 }}>
         <div className="wrapper" style={{ flex: 1, flexDirection: "column", overflowY: "scroll" }}>
           <div className="status_wrapper">
-            <div className="status">{status}</div>
+            <motion.div
+              className="status"
+              whileHover={{ letterSpacing: "10px" }}
+            >{status}</motion.div>
             <div className="status">{persent}%</div>
           </div>
           <div className="items_wrapper">
-            {urls.map((url, index) => (
-              <DownloadItems key={index} url={url} removeDownloadItem={removeDownloadItem} />
-            ))}
+            <AnimatePresence>
+              {urls.map((url, index) => (
+                <DownloadItems key={index} url={url} removeDownloadItem={removeDownloadItem} />
+              ))}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -160,7 +178,7 @@ function App() {
           <div className="button_wrapper">
             <BasicButton text="クリア" onClick={() => { window.location.href = "/" }} />
             <BasicButton text="出力先を変更" onClick={changeOutputPath} />
-            <BasicButton text="ダウンロード" onClick={() => {}} />
+            <BasicButton text="ダウンロード" onClick={() => startDownload({ urls, outputPath })} />
           </div>
         </div>
       </div>

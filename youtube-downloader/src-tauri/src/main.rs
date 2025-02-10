@@ -3,30 +3,31 @@
 
 // Learn more about Tauri commands at https://v1.tauri.app/v1/guides/features/command
 
-use reqwest::Error;
-use scraper::{Html, Selector};
-use tokio::runtime::Runtime;
+use tauri_plugin_log::LogTarget;
+use log::LevelFilter;
+use log::info;
 
-#[tauri::command]
-fn get_video_title(url: &str) -> Result<String, String> {
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-        let response = reqwest::get(url).await.map_err(|e| e.to_string())?.text().await.map_err(|e| "タイトルの取得に失敗しました".to_string())?;
-        
-        let document = Html::parse_document(&response);
-        let selector = Selector::parse("title").unwrap();
-        
-        if let Some(title_element) = document.select(&selector).next() {
-            Ok(title_element.text().collect::<String>())
-        } else {
-            Ok("タイトルの取得に失敗しました".to_string())
-        }
-    })
+mod modules {
+    pub mod install_dependencies;
+    pub mod get_video_title;
+    pub mod start_download;
+    pub mod download_video;
 }
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_video_title])
+        .invoke_handler(tauri::generate_handler![
+            modules::get_video_title::get_video_title,
+            modules::start_download::start_download
+        ])
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([LogTarget::Stdout, LogTarget::Webview])
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+    env_logger::init();
+    modules::install_dependencies::install_dependencies();
 }
