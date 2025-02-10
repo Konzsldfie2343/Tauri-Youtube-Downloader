@@ -8,97 +8,16 @@ import placeholder_img from "./assets/placeholder.svg";
 import { homeDir } from "@tauri-apps/api/path";
 import { join } from "@tauri-apps/api/path";
 
+import BasicButton from "./Components/BasicButton";
+import DownloadItems from "./Components/DownloadItems";
+import URLInput from "./Components/URLInput";
+import Preview from "./Components/Preview";
+import OutputPath from "./Components/OutputPath";
+
+import getOutputPath from "./Modules/getOutputPath";
+
 document.onselectstart = () => false;
 document.ondragstart = () => false;
-
-const BasicButton = ({ text, onClick }: { text: string; onClick: () => void }) => {
-  return (
-    <motion.button
-      className="base_button"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}>
-      {text}
-    </motion.button>
-  )
-}
-
-const ProgressBar = ({ item_persent }: { item_persent: number }) => {
-  return (
-    <div className="progress_bar">
-      <div className="progress" style={{ width: `${item_persent}%` }}></div>
-    </div>
-  );
-};
-
-const download_item_variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const DownloadItems = ({ url, removeDownloadItem }: { url: string, removeDownloadItem: (url: string) => void }) => {
-  const [item_persent, setItemPersent] = useState<number>(0);
-  const video_id = url.split("watch?v=")[1];
-  const image_url = video_id ? `https://img.youtube.com/vi/${video_id}/maxresdefault.jpg` : placeholder_img;
-  const [title, setTitle] = useState<string>("　タイトルを取得中...　　　　　　　　");
-  const title_cache = useRef<string>("");
-
-  useEffect(() => {
-    const getVideoInfo = async () => {
-      if (title_cache.current) return;
-      const video_title: string = await invoke("get_video_title", { url });
-      setTitle(video_title);
-      title_cache.current = video_title;
-    }
-    getVideoInfo();
-  }, [url]);
-
-  return (
-    <motion.div
-      className="download_item"
-      variants={download_item_variants}
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
-    >
-      <div className="image_wrapper">
-        <img src={image_url} />
-      </div>
-      <div className="property_container">
-        <div className="title">{title}</div>
-        <div className="property_wrapper">
-          <ProgressBar item_persent={item_persent} />
-          <BasicButton text="削除" onClick={() => removeDownloadItem(url)} />
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-const URLInput = ({ inputedURL, setInputedURL, addDownloadItem }: { inputedURL: string; setInputedURL: (url: string) => void; addDownloadItem: (url: string) => void }) => {
-  return (
-    <div className="url_input">
-      <input type="text" className="url_input" placeholder="YoutubeのURLを入力" value={inputedURL} onChange={(e) => setInputedURL(e.target.value)} />
-      <BasicButton text="追加" onClick={() => addDownloadItem(inputedURL)} />
-    </div>
-  );
-};
-
-const Preview = ({ url }: { url: string }) => {
-  const video_id = url.split("watch?v=")[1];
-  const image_url = video_id ? `https://img.youtube.com/vi/${video_id}/maxresdefault.jpg` : placeholder_img;
-  return (
-    <div className="wrapper">
-      <img src={image_url} style={{ width: "330px", height: "180px", outline: "1px solid rgba(0, 0, 0, 0.5)" }} />
-    </div>
-  );
-};
-
-const OutputPath = ({ outputPath }: { outputPath: string }) => {
-  return <div className="output_path_container">出力先：{outputPath}</div>;
-};
 
 function App() {
   const [status, setStatus] = useState<"Waiting" | "Downloading..." | "Completed!">("Waiting");
@@ -108,23 +27,13 @@ function App() {
   const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=BtR4yjBNLFU", "https://www.youtube.com/watch?v=qPV3n6zasEY", "https://www.youtube.com/watch?v=s6pj5lZsgQ8"]);
 
   useEffect(() => {
-    const getOutputPath = async () => {
-      try {
-        const path = await homeDir();
-        const output = await join(path, "YoutubeDownloader");
-        setOutputPath(output);
-      } catch (error) {
-        setOutputPath("取得に失敗しました");
-      }
-    };
-    getOutputPath();
+    getOutputPath({ setOutputPath });
   }, []);
 
-  const addDownloadItem = (url: string) => {
-    if (url) {
-      setUrls((prev) => [...prev, url]);
-      setInputedURL("");
-    }
+  const addDownloadItem = ({ url }: { url: string }) => {
+    if (status == "Downloading...") return;
+    setUrls((prev) => [...prev, url]);
+    setInputedURL("");
   };
 
   const removeDownloadItem = (url: string) => {
@@ -142,7 +51,7 @@ function App() {
   const addFromClipboard = async () => {
     const clipboardText = await readText();
     if (clipboardText) {
-      addDownloadItem(clipboardText);
+      addDownloadItem({ url: clipboardText });
     }
   };
 
