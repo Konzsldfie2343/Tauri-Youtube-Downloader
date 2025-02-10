@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import "./App.css";
 import { readText } from "@tauri-apps/api/clipboard";
 import placeholder_img from "./assets/placeholder.svg";
+import { homeDir } from "@tauri-apps/api/path";
+import { join } from "@tauri-apps/api/path";
 
 document.onselectstart = () => false;
 document.ondragstart = () => false;
@@ -40,7 +42,7 @@ const DownloadItems = ({ url, removeDownloadItem }: { url: string, removeDownloa
   const image_url = video_id ? `https://img.youtube.com/vi/${video_id}/maxresdefault.jpg` : placeholder_img;
   const [title, setTitle] = useState<string>("　タイトルを取得中...　　　　　　　　");
   const title_cache = useRef<string>("");
-  
+
   useEffect(() => {
     const getVideoInfo = async () => {
       if (title_cache.current) return;
@@ -99,11 +101,24 @@ const OutputPath = ({ outputPath }: { outputPath: string }) => {
 };
 
 function App() {
-  const [status, setStatus] = useState<"待機中" | "Downloading..." | "完了">("待機中");
+  const [status, setStatus] = useState<"Waiting" | "Downloading..." | "Completed!">("Waiting");
   const [persent, setPercent] = useState<number>(0);
-  const [outputPath, setOutputPath] = useState<string>("./outputs");
+  const [outputPath, setOutputPath] = useState<string>("取得中...");
   const [inputedURL, setInputedURL] = useState<string>("");
-  const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=pwrjcAutgwE", "https://www.youtube.com/watch?v=6AK04Eg7ai0", "https://www.youtube.com/watch?v=9ILjzBg55WA"]);
+  const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=BtR4yjBNLFU", "https://www.youtube.com/watch?v=qPV3n6zasEY", "https://www.youtube.com/watch?v=s6pj5lZsgQ8"]);
+
+  useEffect(() => {
+    const getOutputPath = async () => {
+      try {
+        const path = await homeDir();
+        const output = await join(path, "YoutubeDownloader");
+        setOutputPath(output);
+      } catch (error) {
+        setOutputPath("取得に失敗しました");
+      }
+    };
+    getOutputPath();
+  }, []);
 
   const addDownloadItem = (url: string) => {
     if (url) {
@@ -113,6 +128,7 @@ function App() {
   };
 
   const removeDownloadItem = (url: string) => {
+    if (status == "Downloading...") return;
     const del_index = () => {
       let i = 0;
       for (const item of urls) {
@@ -140,7 +156,7 @@ function App() {
   const startDownload = async ({ urls, outputPath }: { urls: string[], outputPath: string }) => {
     setStatus("Downloading...");
     await invoke("start_download", { urls, outputPath });
-    setStatus("完了");
+    setStatus("Completed!");
   };
 
   return (
@@ -150,7 +166,7 @@ function App() {
           <div className="status_wrapper">
             <motion.div
               className="status"
-              whileHover={{ letterSpacing: "10px" }}
+              whileHover={{ letterSpacing: "3px" }}
             >{status}</motion.div>
             <motion.div
               className="status"
