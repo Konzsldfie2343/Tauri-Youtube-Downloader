@@ -1,20 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
-import { open } from "@tauri-apps/api/dialog";
 import { AnimatePresence, motion } from "framer-motion";
-import "./App.css";
 import { readText } from "@tauri-apps/api/clipboard";
-import placeholder_img from "./assets/placeholder.svg";
-import { homeDir } from "@tauri-apps/api/path";
-import { join } from "@tauri-apps/api/path";
+import { homeDir, join } from "@tauri-apps/api/path";
+import { open } from "@tauri-apps/api/dialog";
 
 import BasicButton from "./Components/BasicButton";
 import DownloadItems from "./Components/DownloadItems";
 import URLInput from "./Components/URLInput";
 import Preview from "./Components/Preview";
 import OutputPath from "./Components/OutputPath";
+import StatusBar from "./Components/StatusBar";
 
-import getOutputPath from "./Modules/getOutputPath";
+import "./App.css";
 
 document.onselectstart = () => false;
 document.ondragstart = () => false;
@@ -27,13 +25,36 @@ function App() {
   const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=BtR4yjBNLFU", "https://www.youtube.com/watch?v=qPV3n6zasEY", "https://www.youtube.com/watch?v=s6pj5lZsgQ8"]);
 
   useEffect(() => {
-    getOutputPath({ setOutputPath });
+    getOutputPath();
   }, []);
 
   const addDownloadItem = ({ url }: { url: string }) => {
     if (status == "Downloading...") return;
-    setUrls((prev) => [...prev, url]);
+    setUrls((prev:string[]) => [...prev, url]);
     setInputedURL("");
+  };
+
+  const addFromClipboard = async () => {
+    const clipboardText = await readText();
+    if (clipboardText) {
+      addDownloadItem({ url: clipboardText });
+    }
+  };
+
+  const getOutputPath = async () => {
+    try {
+      const path = await homeDir();
+      const output = await join(path, "YoutubeDownloader");
+      setOutputPath(output);
+    } catch (error) {
+      setOutputPath("取得に失敗しました");
+    }
+  };
+
+  const startDownload = async ({ urls, outputPath }: { urls: string[], outputPath: string }) => {
+    setStatus("Downloading...");
+    await invoke("start_download", { urls, outputPath });
+    setStatus("Completed!");
   };
 
   const removeDownloadItem = (url: string) => {
@@ -48,13 +69,6 @@ function App() {
     setUrls((prev) => prev.filter((_, index) => index !== del_index()));
   };
 
-  const addFromClipboard = async () => {
-    const clipboardText = await readText();
-    if (clipboardText) {
-      addDownloadItem({ url: clipboardText });
-    }
-  };
-
   const changeOutputPath = async () => {
     const selected = await open({ directory: true });
     if (typeof selected === "string") {
@@ -62,28 +76,11 @@ function App() {
     }
   };
 
-  const startDownload = async ({ urls, outputPath }: { urls: string[], outputPath: string }) => {
-    setStatus("Downloading...");
-    await invoke("start_download", { urls, outputPath });
-    setStatus("Completed!");
-  };
-
   return (
     <div className="App">
       <div className="container" style={{ flex: 2 }}>
         <div className="wrapper" style={{ flex: 1, flexDirection: "column", overflowY: "scroll" }}>
-          <div className="status_wrapper">
-            <motion.div
-              className="status"
-              whileHover={{ letterSpacing: "3px" }}
-            >{status}</motion.div>
-            <motion.div
-              className="status"
-              whileHover={{ letterSpacing: "10px" }}
-            >
-              {persent}%
-            </motion.div>
-          </div>
+          <StatusBar status={status} persent={persent} />
           <div className="items_wrapper">
             <AnimatePresence>
               {urls.map((url, index) => (
@@ -109,7 +106,7 @@ function App() {
         <div className="wrapper">
           <div className="button_wrapper">
             <BasicButton text="クリア" onClick={() => { window.location.href = "/" }} />
-            <BasicButton text="出力先を変更" onClick={changeOutputPath} />
+            <BasicButton text="出力先を変更" onClick={() => changeOutputPath()} />
             <BasicButton text="ダウンロード" onClick={() => startDownload({ urls, outputPath })} />
           </div>
         </div>

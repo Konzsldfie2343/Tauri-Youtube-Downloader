@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import placeholder_img from "../assets/placeholder.svg";
 
 const Preview = ({ url }: { url: string }) => {
