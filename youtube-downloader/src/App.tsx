@@ -38,9 +38,9 @@ const DownloadItems = ({ url, removeDownloadItem }: { url: string, removeDownloa
   const [item_persent, setItemPersent] = useState<number>(0);
   const video_id = url.split("watch?v=")[1];
   const image_url = video_id ? `https://img.youtube.com/vi/${video_id}/maxresdefault.jpg` : placeholder_img;
-  const [title, setTitle] = useState<string>("タイトルを取得中");
+  const [title, setTitle] = useState<string>("　タイトルを取得中...　　　　　　　　");
   const title_cache = useRef<string>("");
-
+  
   useEffect(() => {
     const getVideoInfo = async () => {
       if (title_cache.current) return;
@@ -58,6 +58,8 @@ const DownloadItems = ({ url, removeDownloadItem }: { url: string, removeDownloa
       initial="hidden"
       animate="visible"
       exit="hidden"
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
     >
       <div className="image_wrapper">
         <img src={image_url} />
@@ -97,7 +99,7 @@ const OutputPath = ({ outputPath }: { outputPath: string }) => {
 };
 
 function App() {
-  const [status, setStatus] = useState<"待機中" | "実行中..." | "完了">("待機中");
+  const [status, setStatus] = useState<"待機中" | "Downloading..." | "完了">("待機中");
   const [persent, setPercent] = useState<number>(0);
   const [outputPath, setOutputPath] = useState<string>("./outputs");
   const [inputedURL, setInputedURL] = useState<string>("");
@@ -136,7 +138,7 @@ function App() {
   };
 
   const startDownload = async ({ urls, outputPath }: { urls: string[], outputPath: string }) => {
-    setStatus("実行中...");
+    setStatus("Downloading...");
     await invoke("start_download", { urls, outputPath });
     setStatus("完了");
   };
@@ -150,7 +152,12 @@ function App() {
               className="status"
               whileHover={{ letterSpacing: "10px" }}
             >{status}</motion.div>
-            <div className="status">{persent}%</div>
+            <motion.div
+              className="status"
+              whileHover={{ letterSpacing: "10px" }}
+            >
+              {persent}%
+            </motion.div>
           </div>
           <div className="items_wrapper">
             <AnimatePresence>
