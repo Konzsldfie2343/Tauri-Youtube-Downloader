@@ -16,9 +16,11 @@ mod modules {
 
 fn main() {
     tauri::Builder::default()
+        .manage(modules::start_download::init_progress()) // Progress の状態を管理
         .invoke_handler(tauri::generate_handler![
             modules::get_video_title::get_video_title,
-            modules::start_download::start_download
+            modules::start_download::start_download,
+            modules::start_download::get_download_progress
         ])
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -28,6 +30,7 @@ fn main() {
         )
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
     env_logger::init();
     modules::install_dependencies::install_dependencies();
 }

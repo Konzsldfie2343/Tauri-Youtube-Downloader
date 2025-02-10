@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { readText } from "@tauri-apps/api/clipboard";
 import { homeDir, join } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/api/dialog";
@@ -19,7 +19,7 @@ document.ondragstart = () => false;
 
 function App() {
   const [status, setStatus] = useState<"Waiting" | "Downloading..." | "Completed!">("Waiting");
-  const [persent, setPercent] = useState<number>(0);
+  const [progress, setProgress] = useState<string>("待機");
   const [outputPath, setOutputPath] = useState<string>("取得中...");
   const [inputedURL, setInputedURL] = useState<string>("");
   const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=BtR4yjBNLFU", "https://www.youtube.com/watch?v=qPV3n6zasEY", "https://www.youtube.com/watch?v=s6pj5lZsgQ8"]);
@@ -30,7 +30,7 @@ function App() {
 
   const addDownloadItem = ({ url }: { url: string }) => {
     if (status == "Downloading...") return;
-    setUrls((prev:string[]) => [...prev, url]);
+    setUrls((prev: string[]) => [...prev, url]);
     setInputedURL("");
   };
 
@@ -52,9 +52,16 @@ function App() {
   };
 
   const startDownload = async ({ urls, outputPath }: { urls: string[], outputPath: string }) => {
-    setStatus("Downloading...");
-    await invoke("start_download", { urls, outputPath });
-    setStatus("Completed!");
+    if (status == "Downloading...") return;
+      setStatus("Downloading...");
+      const intervalId = setInterval(async () => {
+        setProgress(await invoke("get_download_progress"));
+        if (progress == "100%") clearInterval(intervalId);
+      })
+      await invoke("start_download", { urls, outputPath });
+      setStatus("Completed!");
+      setProgress("完了");
+      clearInterval(intervalId);
   };
 
   const removeDownloadItem = (url: string) => {
@@ -70,6 +77,7 @@ function App() {
   };
 
   const changeOutputPath = async () => {
+    if (status == "Downloading...") return;
     const selected = await open({ directory: true });
     if (typeof selected === "string") {
       setOutputPath(selected);
@@ -80,7 +88,7 @@ function App() {
     <div className="App">
       <div className="container" style={{ flex: 2 }}>
         <div className="wrapper" style={{ flex: 1, flexDirection: "column", overflowY: "scroll" }}>
-          <StatusBar status={status} persent={persent} />
+          <StatusBar status={status} progress={progress} />
           <div className="items_wrapper">
             <AnimatePresence>
               {urls.map((url, index) => (

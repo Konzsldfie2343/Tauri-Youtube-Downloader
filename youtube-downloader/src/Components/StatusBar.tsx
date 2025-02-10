@@ -1,6 +1,6 @@
 import { motion } from "framer-motion"
 
-const StatusBar = ({ status, persent }: { status: string, persent: number }) => {
+const StatusBar = ({ status, progress }: { status: string, progress: string }) => {
     return (
       <div className="status_wrapper">
         <motion.div
@@ -11,7 +11,7 @@ const StatusBar = ({ status, persent }: { status: string, persent: number }) => 
           className="status"
           whileHover={{ letterSpacing: "10px" }}
         >
-          {persent}%
+          {progress}
         </motion.div>
       </div>
     );

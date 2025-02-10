@@ -44,7 +44,7 @@ const download_item_variants = {
         <div className="property_container">
           <div className="title">{title}</div>
           <div className="property_wrapper">
-            <ProgressBar item_persent={item_persent} />
+            <div className="output_path_container" style={{ width: "220px" }}>URL：{url}</div>
             <BasicButton text="削除" onClick={() => removeDownloadItem(url)} />
           </div>
         </div>
