@@ -22,13 +22,18 @@ const variants = {
   visible: { opacity: 1, y: 0 },
 }
 
+const navigation_variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+}
+
 function App() {
 
   const [status, setStatus] = useState<"Waiting" | "Downloading..." | "Completed!">("Waiting");
   const [progress, setProgress] = useState<string>("待機");
   const [outputPath, setOutputPath] = useState<string>("取得中...");
   const [inputedURL, setInputedURL] = useState<string>("");
-  const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=BtR4yjBNLFU", "https://www.youtube.com/watch?v=qPV3n6zasEY", "https://www.youtube.com/watch?v=s6pj5lZsgQ8"]);
+  const [urls, setUrls] = useState<string[]>([]);
   const duplicateURL = useRef<string>("");
 
   useEffect(() => {
@@ -58,6 +63,10 @@ function App() {
   const getOutputPath = async () => {
     if (status == "Downloading...") return;
     try {
+      if (localStorage.getItem("outputPath")) {
+        setOutputPath(localStorage.getItem("outputPath")!);
+        return;
+      }
       const path = await homeDir();
       const output = await join(path, "YoutubeDownloader");
       setOutputPath(output);
@@ -96,6 +105,7 @@ function App() {
     const selected = await open({ directory: true });
     if (typeof selected === "string") {
       setOutputPath(selected);
+      localStorage.setItem("outputPath", selected);
     }
   };
 
@@ -132,6 +142,21 @@ function App() {
         <div className="wrapper" style={{ flex: 1, flexDirection: "column", overflowY: "scroll" }}>
           <StatusBar status={status} progress={progress} />
           <div className="items_wrapper">
+            {(urls.length == 0) && (
+              <motion.div
+                className="navigations"
+                variants={navigation_variants}
+                initial="hidden"
+                animate="visible"
+              >
+                <h1>ようこそ、Youtube Downloader へ</h1><br />
+                <p>1. ダウンロードしたいYoutubeの動画のURLを入力するか、クリップボードから自動入力します</p>
+                <p>2. 出力先フォルダを変更したい場合は、「出力先を変更」を押すと、出力先フォルダを選択できます</p>
+                <p>3. 「ダウンロード」を押すと、指定されたフォルダにダウンロードが開始されます</p>
+                <p>4. 表示がおかしくなった場合や、リストをリセットしたい場合は、「クリア」を押してください</p>
+                <p>5. 動画が完全にダウンロードし終わるまで、ファイルやフォルダを操作しないようにしてください</p>
+              </motion.div>
+            )}
             <AnimatePresence>
               {urls.map((url, index) => (
                 <DownloadItems key={index} url={url} removeDownloadItem={removeDownloadItem} />
