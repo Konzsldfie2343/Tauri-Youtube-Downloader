@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { AnimatePresence } from "framer-motion";
 import { readText } from "@tauri-apps/api/clipboard";
 import { homeDir, join } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/api/dialog";
+import { motion } from "framer-motion";
 
 import BasicButton from "./Components/BasicButton";
 import DownloadItems from "./Components/DownloadItems";
@@ -16,13 +17,19 @@ import "./App.css";
 
 document.onselectstart = () => false;
 document.ondragstart = () => false;
+const variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+}
 
 function App() {
+
   const [status, setStatus] = useState<"Waiting" | "Downloading..." | "Completed!">("Waiting");
   const [progress, setProgress] = useState<string>("待機");
   const [outputPath, setOutputPath] = useState<string>("取得中...");
   const [inputedURL, setInputedURL] = useState<string>("");
   const [urls, setUrls] = useState<string[]>(["https://www.youtube.com/watch?v=BtR4yjBNLFU", "https://www.youtube.com/watch?v=qPV3n6zasEY", "https://www.youtube.com/watch?v=s6pj5lZsgQ8"]);
+  const duplicateURL = useRef<string>("");
 
   useEffect(() => {
     getOutputPath();
@@ -30,18 +37,26 @@ function App() {
 
   const addDownloadItem = ({ url }: { url: string }) => {
     if (status == "Downloading...") return;
+    if (urls.includes(url)) {
+      duplicateURL.current = url;
+      setIsDialogVisible(true)
+      return
+    }
     setUrls((prev: string[]) => [...prev, url]);
     setInputedURL("");
   };
 
   const addFromClipboard = async () => {
+    if (status == "Downloading...") return;
     const clipboardText = await readText();
     if (clipboardText) {
+      console.log(clipboardText);
       addDownloadItem({ url: clipboardText });
     }
   };
 
   const getOutputPath = async () => {
+    if (status == "Downloading...") return;
     try {
       const path = await homeDir();
       const output = await join(path, "YoutubeDownloader");
@@ -53,15 +68,15 @@ function App() {
 
   const startDownload = async ({ urls, outputPath }: { urls: string[], outputPath: string }) => {
     if (status == "Downloading...") return;
-      setStatus("Downloading...");
-      const intervalId = setInterval(async () => {
-        setProgress(await invoke("get_download_progress"));
-        if (progress == "100%") clearInterval(intervalId);
-      })
-      await invoke("start_download", { urls, outputPath });
-      setStatus("Completed!");
-      setProgress("完了");
-      clearInterval(intervalId);
+    setStatus("Downloading...");
+    const intervalId = setInterval(async () => {
+      setProgress(await invoke("get_download_progress"));
+      if (progress == "100%") clearInterval(intervalId);
+    })
+    await invoke("start_download", { urls, outputPath });
+    setStatus("Completed!");
+    setProgress("完了");
+    clearInterval(intervalId);
   };
 
   const removeDownloadItem = (url: string) => {
@@ -83,6 +98,33 @@ function App() {
       setOutputPath(selected);
     }
   };
+
+  const [isDialogVisible, setIsDialogVisible] = useState<Boolean>(false);
+
+  const Dialog = () => {
+    const onClick = (ans: string) => {
+      if (ans == "yes") {
+        setUrls((prev) => [...prev, duplicateURL.current]);
+      }
+      setInputedURL("");
+      setIsDialogVisible(false);
+    }
+    return (
+      <motion.div
+        className="dialog"
+        variants={variants}
+        initial="hidden"
+        animate="visible"
+        exit="hidden"
+      >
+        <div><span style={{ fontSize: "2.2rem" }}>Caution!</span><br /><br />すでに重複する項目があります。URLを追加しますか？</div>
+        <div style={{ width: "80%", display: "flex", gap: "10px", justifyContent: "space-around", alignItems: "center" }}>
+          <BasicButton text="いいえ" onClick={() => { onClick("no") }} />
+          <BasicButton text="はい" onClick={() => { onClick("yes") }} />
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <div className="App">
@@ -119,6 +161,9 @@ function App() {
           </div>
         </div>
       </div>
+      <AnimatePresence>
+        {isDialogVisible && <Dialog />}
+      </AnimatePresence>
     </div>
   );
 }
