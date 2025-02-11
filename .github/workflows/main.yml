@@ -25,6 +25,9 @@ jobs:
           node-version: 18
           cache: npm
 
+      - name: カレントディレクトリを移動
+        run: cd youtube-downloader
+
       - name: 必要な依存関係をインストール
         run: npm install
 
