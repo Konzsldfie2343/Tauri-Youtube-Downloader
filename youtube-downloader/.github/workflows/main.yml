@@ -1,0 +1,41 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Rust をセットアップ
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: 必要な依存関係をインストール
+        run: npm install
+
+      - name: Tauri CLI のインストール
+        run: npm install -g @tauri-apps/cli
+
+      - name: Windows 用の Tauri をビルド
+        run: npm run tauri build
+
+      - name: ビルド成果物をアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows-build
+          path: src-tauri/target/release/bundle/nsis/*.exe
